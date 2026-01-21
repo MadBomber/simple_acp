@@ -2,7 +2,7 @@
 
 This directory contains example programs demonstrating SimpleAcp features.
 
-Each example is organized in its own subdirectory with both `server.rb` and `client.rb` files.
+Each example is organized in its own subdirectory with both `server.rb` and `client.rb` files, plus a shell script to run them together.
 
 ## Examples
 
@@ -31,72 +31,190 @@ Basic server and client demonstrating core SimpleAcp functionality.
 **Usage:**
 
 ```bash
-# Option 1: Run both with the shell script
 ./examples/01_basic.sh
+```
 
-# Option 2: Run manually in separate terminals
-# Terminal 1: Start the server
+---
+
+### 02_async_execution
+
+Demonstrates asynchronous (non-blocking) execution patterns.
+
+**Server** (`02_async_execution/server.rb`) - Registers:
+
+| Agent | Description |
+|-------|-------------|
+| `slow-worker` | Simulates a 3-second task with progress updates |
+| `quick-status` | Returns status immediately |
+
+**Client** (`02_async_execution/client.rb`) - Demonstrates:
+
+- Async execution with `run_async`
+- Manual polling with `run_status`
+- Waiting for completion with `wait_for_run`
+- Running multiple tasks concurrently
+
+**Usage:**
+
+```bash
+./examples/02_async_execution.sh
+```
+
+---
+
+### 03_run_management
+
+Demonstrates run lifecycle management including cancellation and event history.
+
+**Server** (`03_run_management/server.rb`) - Registers:
+
+| Agent | Description |
+|-------|-------------|
+| `cancellable-task` | A long-running task that checks for cancellation |
+| `event-generator` | Generates multiple events for history tracking |
+
+**Client** (`03_run_management/client.rb`) - Demonstrates:
+
+- Cancelling a running task with `run_cancel`
+- Checking `context.cancelled?` in the agent
+- Retrieving event history with `run_events`
+- Event pagination with limit and offset
+
+**Usage:**
+
+```bash
+./examples/03_run_management.sh
+```
+
+---
+
+### 04_rich_messages
+
+Demonstrates different message part types and content negotiation.
+
+**Server** (`04_rich_messages/server.rb`) - Registers:
+
+| Agent | Description |
+|-------|-------------|
+| `json-data` | Returns structured JSON data |
+| `image-generator` | Generates SVG images as base64 |
+| `link-provider` | Returns URL references with metadata |
+| `multi-format` | Returns data in multiple formats (text, JSON, HTML) |
+
+**Client** (`04_rich_messages/client.rb`) - Demonstrates:
+
+- Receiving and parsing JSON content
+- Handling base64 encoded data
+- Working with URL references and metadata
+- Multi-part messages with different content types
+- Inspecting agent content type capabilities
+
+**Usage:**
+
+```bash
+./examples/04_rich_messages.sh
+```
+
+---
+
+### 05_await_resume
+
+Demonstrates the await/resume pattern for interactive multi-step flows.
+
+**Server** (`05_await_resume/server.rb`) - Registers:
+
+| Agent | Description |
+|-------|-------------|
+| `greeter` | Asks for your name, then greets you |
+| `survey` | A multi-step survey collecting multiple pieces of information |
+| `confirmer` | Asks for confirmation before performing an action |
+
+**Client** (`05_await_resume/client.rb`) - Demonstrates:
+
+- Detecting when a run is in "awaiting" status
+- Resuming with `run_resume_sync`
+- Multi-step interactive flows using state
+- Confirmation dialogs
+- Streaming resume with `run_resume_stream`
+
+**Usage:**
+
+```bash
+./examples/05_await_resume.sh
+```
+
+---
+
+### 06_agent_metadata
+
+Demonstrates rich agent metadata and content type negotiation.
+
+**Server** (`06_agent_metadata/server.rb`) - Registers:
+
+| Agent | Description |
+|-------|-------------|
+| `text-analyzer` | Full-featured agent with comprehensive metadata |
+| `simple-echo` | Minimal agent for comparison |
+| `json-processor` | Agent with specific content type requirements |
+
+**Client** (`06_agent_metadata/client.rb`) - Demonstrates:
+
+- Retrieving full agent metadata with `agent(name)`
+- Inspecting author, contributors, capabilities, links
+- Content type negotiation (`accepts_content_type?`, `produces_content_type?`)
+- Metadata fields: documentation, license, domains, tags, dependencies
+
+**Usage:**
+
+```bash
+./examples/06_agent_metadata.sh
+```
+
+---
+
+## Running All Examples
+
+Each example can be run independently using its shell script:
+
+```bash
+# From the project root
+./examples/01_basic.sh
+./examples/02_async_execution.sh
+./examples/03_run_management.sh
+./examples/04_rich_messages.sh
+./examples/05_await_resume.sh
+./examples/06_agent_metadata.sh
+```
+
+Or run server and client manually in separate terminals:
+
+```bash
+# Terminal 1: Start server
 ruby examples/01_basic/server.rb
 
-# Terminal 2: Run the client
+# Terminal 2: Run client
 ruby examples/01_basic/client.rb
 ```
 
-**Expected Output:**
+## Feature Coverage
 
-Server:
-```
-Starting SimpleAcp Server...
-Available agents:
-  - echo: Echoes everything you send
-  - greeter: Greets the user by name
-  - counter: Counts how many times you've called it
-  - gettysburg: Recites the Gettysburg Address word by word
-  - assistant: A simple assistant that remembers conversation history
-```
-
-Client:
-```
-=== SimpleAcp Client Example ===
-
-✓ Server is healthy
-
-Available agents:
-  - echo: Echoes everything you send
-  - greeter: Greets the user by name
-  - counter: Counts how many times you've called it
-  - gettysburg: Recites the Gettysburg Address word by word
-  - assistant: A simple assistant that remembers conversation history
-
---- Testing echo agent ---
-Input: Hello, SimpleAcp!
-Output: Hello, SimpleAcp!
-
---- Testing greeter agent ---
-Input: Ruby Developer
-Output: Hello, Ruby Developer! Welcome to SimpleAcp.
-
---- Testing counter agent with session ---
-Call 1: You have called me 1 time(s).
-Call 2: You have called me 2 time(s).
-Call 3: You have called me 3 time(s).
-
---- Testing streaming (Gettysburg Address) ---
-
-  Four score and seven years ago... [words stream one at a time with 0.5s delay]
-  ...government of the people, by the people, for the people, shall not perish from the earth.
-
-[Streaming complete]
-
---- Testing assistant with history ---
-User: Hi!
-Agent: Hello! This is our first conversation. How can I help you?
-
-User: Tell me more
-Agent: I see we've had 2 previous messages. What else can I help with?
-
-User: Thanks!
-Agent: I see we've had 4 previous messages. What else can I help with?
-
-=== All tests completed ===
-```
+| Feature | Example |
+|---------|---------|
+| Basic agent registration | 01_basic |
+| Streaming responses | 01_basic |
+| Session state | 01_basic |
+| Conversation history | 01_basic |
+| Async execution | 02_async_execution |
+| Polling (`run_status`, `wait_for_run`) | 02_async_execution |
+| Concurrent runs | 02_async_execution |
+| Run cancellation | 03_run_management |
+| Event history | 03_run_management |
+| JSON message parts | 04_rich_messages |
+| Binary/base64 data | 04_rich_messages |
+| URL references | 04_rich_messages |
+| Content type negotiation | 04_rich_messages, 06_agent_metadata |
+| Await/resume pattern | 05_await_resume |
+| Multi-step flows | 05_await_resume |
+| Agent metadata | 06_agent_metadata |
+| Author/contributor info | 06_agent_metadata |
+| Capabilities and dependencies | 06_agent_metadata |
