@@ -7,7 +7,7 @@ require "simple_acp"
 require "minitest/autorun"
 require "minitest/reporters"
 require "rack/test"
-require "webmock/minitest"
+# No mocks - tests use real objects and integrations
 
 Minitest::Reporters.use! Minitest::Reporters::SpecReporter.new
 

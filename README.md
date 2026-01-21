@@ -45,6 +45,7 @@
 - **Multimodal Messages**: Support for text, JSON, images, and URL references
 - **Pluggable Storage**: In-memory, Redis, and PostgreSQL backends
 - **SSE Streaming**: Server-Sent Events for real-time response streaming
+- **Falcon Server**: Fiber-based concurrency for efficient handling of concurrent connections
 
 ## Documentation
 

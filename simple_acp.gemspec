@@ -30,9 +30,11 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  # HTTP Server
+  # HTTP Server - Falcon with Async ecosystem
   spec.add_dependency "roda", "~> 3.0"
-  spec.add_dependency "puma", "~> 6.0"
+  spec.add_dependency "falcon", "~> 0.47"
+  spec.add_dependency "async", "~> 2.0"
+  spec.add_dependency "async-http", "~> 0.66"
 
   # HTTP Client
   spec.add_dependency "faraday", "~> 2.0"

@@ -85,7 +85,8 @@ SimpleAcp depends on these gems (automatically installed):
 | Gem | Purpose |
 |-----|---------|
 | `roda` | HTTP routing and request handling |
-| `puma` | Production-ready web server |
+| `falcon` | Fiber-based web server for efficient concurrency |
+| `async` | Asynchronous I/O framework |
 | `faraday` | HTTP client for agent clients |
 | `concurrent-ruby` | Thread-safe data structures |
 

@@ -39,6 +39,7 @@ SimpleAcp provides an open protocol for communication between AI agents, applica
 - **Multimodal Messages**: Support for text, JSON, images, and URL references
 - **Pluggable Storage**: In-memory, Redis, and PostgreSQL backends included
 - **SSE Streaming**: Server-Sent Events for real-time response streaming
+- **Falcon Server**: Fiber-based concurrency for efficient handling of thousands of concurrent connections
 
 ## Quick Example
 
@@ -92,7 +93,7 @@ graph LR
 
 SimpleAcp follows a client-server architecture:
 
-- **Server**: Hosts agents and handles HTTP requests via Roda/Puma
+- **Server**: Hosts agents and handles HTTP requests via Roda/Falcon
 - **Agents**: Process input and produce output messages
 - **Client**: Communicates with servers over HTTP with optional SSE streaming
 - **Storage**: Persists runs, sessions, and events

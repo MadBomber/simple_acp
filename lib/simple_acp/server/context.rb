@@ -129,7 +129,17 @@ module SimpleAcp
       # @param message [String] the message to log
       # @return [void]
       def log(message)
-        Acp.logger&.info("[#{agent_name}] #{message}")
+        SimpleAcp.logger&.info("[#{agent_name}] #{message}")
+      end
+
+      # Get the resume message (only available during resume).
+      #
+      # This method returns nil for initial contexts. Override in
+      # ResumeContext to return the actual resume message.
+      #
+      # @return [Models::Message, nil] nil for initial context
+      def resume_message
+        nil
       end
     end
 

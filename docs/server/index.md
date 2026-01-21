@@ -98,7 +98,7 @@ server.agent("name", description: "...") do |context|
   # Handler logic
 end
 
-# 3. Start HTTP server (uses Puma)
+# 3. Start HTTP server (uses Falcon)
 server.run(port: 8000)
 ```
 
@@ -143,11 +143,11 @@ server = SimpleAcp::Server::Base.new(
 ```ruby
 server.run(
   port: 8000,
-  host: '0.0.0.0',
-  workers: 2,
-  threads: '1:5'
+  host: '0.0.0.0'
 )
 ```
+
+Falcon uses fiber-based concurrency, efficiently handling thousands of concurrent connections without the need for thread pool configuration.
 
 ## Best Practices
 

@@ -67,16 +67,16 @@ Choose the appropriate storage backend for your deployment:
 
 ### HTTP Server Options
 
-When running the HTTP server, you can configure Puma:
+When running the HTTP server with Falcon:
 
 ```ruby
 server.run(
   port: 8000,              # Listen port
-  host: '0.0.0.0',         # Bind address
-  workers: 2,              # Puma workers
-  threads: '1:5'           # Min:max threads per worker
+  host: '0.0.0.0'          # Bind address
 )
 ```
+
+Falcon uses fiber-based concurrency, efficiently handling thousands of concurrent SSE connections without manual thread configuration.
 
 ## Client Configuration
 

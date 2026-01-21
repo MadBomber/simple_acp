@@ -5,7 +5,7 @@ module SimpleAcp
     # Main ACP Server class for hosting agents and handling requests.
     #
     # The server manages agent registration, run execution (sync, async, stream),
-    # session state, and exposes an HTTP API via Roda/Puma.
+    # session state, and exposes an HTTP API via Roda/Falcon.
     #
     # @example Creating and running a server
     #   server = SimpleAcp::Server::Base.new
@@ -168,22 +168,26 @@ module SimpleAcp
             @storage.save_run(run)
 
             output_messages = []
+            awaiting = false
+
             execute_agent(context) do |yielded|
               case yielded
               when RunYield
                 output_messages << yielded.message
               when RunYieldAwait
-                return
+                awaiting = true
+                break
               end
             end
 
-            # Check if cancelled before completing
+            # Check if cancelled or awaiting before completing
             if context.cancelled?
               run.cancelled!
-            else
+            elsif !awaiting
               run.complete!(output_messages)
               update_session_history(context.session, input, output_messages)
             end
+            # If awaiting, run is already in awaiting state from await_message
           rescue StandardError => e
             run.fail!(e.message)
           ensure
@@ -378,37 +382,29 @@ module SimpleAcp
       #
       # @return [Roda] the Rack application
       def to_app
-        App.configure(self)
-        App.freeze.app
+        # Create a subclass to avoid freezing the base App class
+        app_class = Class.new(App)
+        app_class.configure(self)
+        app_class.freeze.app
       end
 
-      # Start the HTTP server using Puma.
+      # Start the HTTP server using Falcon.
+      #
+      # Falcon provides fiber-based concurrency for efficient handling
+      # of SSE streams and long-lived connections.
       #
       # @param port [Integer] port to listen on (default: 8000)
       # @param host [String] host to bind to (default: "0.0.0.0")
-      # @param puma_options [Hash] additional Puma configuration options
+      # @param options [Hash] additional Falcon configuration options
       # @return [void]
-      def run(port: 8000, host: "0.0.0.0", **puma_options)
-        require "puma"
+      def run(port: 8000, host: "0.0.0.0", **options)
+        require_relative "falcon_runner"
 
         app = to_app
 
-        events = Puma::Events.new
-        binder = Puma::Binder.new(events)
-        binder.parse(["tcp://#{host}:#{port}"], events)
-
-        server = Puma::Server.new(app, events)
-        server.binder = binder
-
-        puts "ACP Server running on http://#{host}:#{port}"
         puts "Registered agents: #{@agents.keys.join(', ')}"
 
-        begin
-          server.run.join
-        rescue Interrupt
-          puts "\nShutting down..."
-          server.stop(true)
-        end
+        FalconRunner.run(app, port: port, host: host, **options)
       end
 
       private

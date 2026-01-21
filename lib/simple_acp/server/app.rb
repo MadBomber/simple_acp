@@ -26,7 +26,6 @@ module SimpleAcp
       plugin :json_parser
       plugin :all_verbs
       plugin :halt
-      plugin :streaming
 
       # Configure the Roda app with a server instance.
       #
@@ -80,8 +79,9 @@ module SimpleAcp
 
         # Runs endpoints
         r.on "runs" do
-          # Create a new run
-          r.post do
+          # Create a new run (only matches POST /runs with no path segment)
+          r.is do
+            r.post do
             body = r.params
             request = Models::RunCreateRequest.from_hash(body)
 
@@ -111,20 +111,34 @@ module SimpleAcp
                 )
                 run.to_h
               when Models::Types::RunMode::STREAM
-                response["Content-Type"] = "text/event-stream"
-                response["Cache-Control"] = "no-cache"
-                response["Connection"] = "keep-alive"
+                headers = {
+                  "Content-Type" => "text/event-stream",
+                  "Cache-Control" => "no-cache",
+                  "Connection" => "keep-alive",
+                  "X-Accel-Buffering" => "no"
+                }
 
-                stream do |out|
-                  self.class.server.run_stream(
-                    agent_name: request.agent_name,
-                    input: request.input,
-                    session_id: request.session_id,
-                    session: request.session
-                  ) do |event|
-                    out << event.sse_format
+                server_instance = self.class.server
+                req = request
+
+                body = proc do |stream|
+                  begin
+                    server_instance.run_stream(
+                      agent_name: req.agent_name,
+                      input: req.input,
+                      session_id: req.session_id,
+                      session: req.session
+                    ) do |event|
+                      stream.write(event.sse_format)
+                    end
+                  rescue => error
+                    SimpleAcp.logger&.error("Stream error: #{error.message}")
+                  ensure
+                    stream.close rescue nil
                   end
                 end
+
+                r.halt [200, headers, body]
               else
                 response.status = 400
                 r.halt({ error: Models::Error.invalid_input("Invalid mode: #{mode}").to_h })
@@ -136,21 +150,43 @@ module SimpleAcp
               response.status = 500
               r.halt({ error: Models::Error.server_error(e.message).to_h })
             end
+            end
           end
 
           r.on String do |run_id|
-            # Get run status
-            r.get do
-              run = self.class.server.storage.get_run(run_id)
-              unless run
+            # Cancel a run (must come before r.is to match /cancel path)
+            r.post "cancel" do
+              begin
+                run = self.class.server.cancel_run(run_id)
+                run.to_h
+              rescue SimpleAcp::NotFoundError => e
                 response.status = 404
-                r.halt({ error: Models::Error.not_found("Run '#{run_id}' not found").to_h })
+                r.halt({ error: Models::Error.not_found(e.message).to_h })
               end
-              run.to_h
             end
 
-            # Resume a paused run
-            r.post do
+            # Get run events (must come before r.is to match /events path)
+            r.get "events" do
+              limit = (r.params["limit"] || 100).to_i.clamp(1, 1000)
+              offset = (r.params["offset"] || 0).to_i
+
+              events = self.class.server.storage.get_events(run_id, limit: limit, offset: offset)
+              { events: events.map(&:to_h) }
+            end
+
+            # Get run status or resume run (matches exactly /runs/:id)
+            r.is do
+              r.get do
+                run = self.class.server.storage.get_run(run_id)
+                unless run
+                  response.status = 404
+                  r.halt({ error: Models::Error.not_found("Run '#{run_id}' not found").to_h })
+                end
+                run.to_h
+              end
+
+              # Resume a paused run
+              r.post do
               body = r.params
               request = Models::RunResumeRequest.from_hash(body.merge("run_id" => run_id))
 
@@ -170,18 +206,33 @@ module SimpleAcp
                   )
                   run.to_h
                 when Models::Types::RunMode::STREAM
-                  response["Content-Type"] = "text/event-stream"
-                  response["Cache-Control"] = "no-cache"
-                  response["Connection"] = "keep-alive"
+                  headers = {
+                    "Content-Type" => "text/event-stream",
+                    "Cache-Control" => "no-cache",
+                    "Connection" => "keep-alive",
+                    "X-Accel-Buffering" => "no"
+                  }
 
-                  stream do |out|
-                    self.class.server.resume_stream(
-                      run_id: run_id,
-                      await_resume: request.await_resume
-                    ) do |event|
-                      out << event.sse_format
+                  server_instance = self.class.server
+                  req = request
+                  rid = run_id
+
+                  body = proc do |stream|
+                    begin
+                      server_instance.resume_stream(
+                        run_id: rid,
+                        await_resume: req.await_resume
+                      ) do |event|
+                        stream.write(event.sse_format)
+                      end
+                    rescue => error
+                      SimpleAcp.logger&.error("Resume stream error: #{error.message}")
+                    ensure
+                      stream.close rescue nil
                     end
                   end
+
+                  r.halt [200, headers, body]
                 else
                   response.status = 400
                   r.halt({ error: Models::Error.invalid_input("Invalid mode: #{mode}").to_h })
@@ -193,26 +244,7 @@ module SimpleAcp
                 response.status = 500
                 r.halt({ error: Models::Error.server_error(e.message).to_h })
               end
-            end
-
-            # Cancel a run
-            r.post "cancel" do
-              begin
-                run = self.class.server.cancel_run(run_id)
-                run.to_h
-              rescue SimpleAcp::NotFoundError => e
-                response.status = 404
-                r.halt({ error: Models::Error.not_found(e.message).to_h })
               end
-            end
-
-            # Get run events
-            r.get "events" do
-              limit = (r.params["limit"] || 100).to_i.clamp(1, 1000)
-              offset = (r.params["offset"] || 0).to_i
-
-              events = self.class.server.storage.get_events(run_id, limit: limit, offset: offset)
-              { events: events.map(&:to_h) }
             end
           end
         end

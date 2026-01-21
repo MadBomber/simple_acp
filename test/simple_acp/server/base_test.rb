@@ -219,4 +219,182 @@ class ServerBaseTest < SimpleAcpTestCase
 
     assert app.respond_to?(:call)
   end
+
+  # Resume tests
+
+  def test_run_sync_returns_awaiting_run_when_agent_awaits
+    @server.agent("questioner") do |context|
+      if context.resume_message
+        SimpleAcp::Models::Message.agent("Hello, #{context.resume_message.text_content}!")
+      else
+        context.await_message(SimpleAcp::Models::Message.agent("What is your name?"))
+      end
+    end
+
+    run = @server.run_sync(agent_name: "questioner", input: [])
+
+    assert run.awaiting?
+    assert_instance_of SimpleAcp::Models::MessageAwaitRequest, run.await_request
+    assert_equal "What is your name?", run.await_request.message.text_content
+  end
+
+  def test_resume_sync_continues_awaited_run
+    @server.agent("questioner") do |context|
+      if context.resume_message
+        SimpleAcp::Models::Message.agent("Hello, #{context.resume_message.text_content}!")
+      else
+        context.await_message(SimpleAcp::Models::Message.agent("What is your name?"))
+      end
+    end
+
+    # First run - awaits
+    run = @server.run_sync(agent_name: "questioner", input: [])
+    assert run.awaiting?
+
+    # Resume with response
+    await_resume = SimpleAcp::Models::MessageAwaitResume.new(
+      message: SimpleAcp::Models::Message.user("Alice")
+    )
+    resumed_run = @server.resume_sync(run_id: run.run_id, await_resume: await_resume)
+
+    assert resumed_run.completed?
+    assert_equal "Hello, Alice!", resumed_run.output.last.text_content
+  end
+
+  def test_resume_sync_raises_not_found_for_unknown_run
+    await_resume = SimpleAcp::Models::MessageAwaitResume.new(
+      message: SimpleAcp::Models::Message.user("Test")
+    )
+
+    assert_raises(SimpleAcp::NotFoundError) do
+      @server.resume_sync(run_id: "nonexistent", await_resume: await_resume)
+    end
+  end
+
+  def test_resume_sync_raises_validation_error_for_non_awaiting_run
+    @server.agent("simple") do |_context|
+      SimpleAcp::Models::Message.agent("Done")
+    end
+
+    run = @server.run_sync(agent_name: "simple", input: [])
+    assert run.completed?
+
+    await_resume = SimpleAcp::Models::MessageAwaitResume.new(
+      message: SimpleAcp::Models::Message.user("Test")
+    )
+
+    assert_raises(SimpleAcp::ValidationError) do
+      @server.resume_sync(run_id: run.run_id, await_resume: await_resume)
+    end
+  end
+
+  def test_resume_stream_yields_events
+    @server.agent("questioner") do |context|
+      if context.resume_message
+        SimpleAcp::Models::Message.agent("Hello, #{context.resume_message.text_content}!")
+      else
+        context.await_message(SimpleAcp::Models::Message.agent("What is your name?"))
+      end
+    end
+
+    # First run - awaits
+    events = []
+    @server.run_stream(agent_name: "questioner", input: []) do |event|
+      events << event
+    end
+
+    run_id = events.find { |e| e.type == "run.created" }&.run&.run_id
+    assert events.any? { |e| e.type == "run.awaiting" }
+
+    # Resume with response
+    await_resume = SimpleAcp::Models::MessageAwaitResume.new(
+      message: SimpleAcp::Models::Message.user("Bob")
+    )
+
+    resume_events = []
+    @server.resume_stream(run_id: run_id, await_resume: await_resume) do |event|
+      resume_events << event
+    end
+
+    event_types = resume_events.map(&:type)
+    assert_includes event_types, "run.in-progress"
+    assert_includes event_types, "message.created"
+    assert_includes event_types, "run.completed"
+  end
+
+  def test_run_stream_yields_awaiting_event
+    @server.agent("awaiter") do |context|
+      context.await_message(SimpleAcp::Models::Message.agent("Please respond"))
+    end
+
+    events = []
+    @server.run_stream(agent_name: "awaiter", input: []) do |event|
+      events << event
+    end
+
+    awaiting_event = events.find { |e| e.type == "run.awaiting" }
+    assert awaiting_event
+    assert_instance_of SimpleAcp::Models::MessageAwaitRequest, awaiting_event.await_request
+  end
+
+  def test_run_async_handles_awaiting_agent
+    @server.agent("async-awaiter") do |context|
+      Enumerator.new do |yielder|
+        yielder << context.await_message(SimpleAcp::Models::Message.agent("Input needed"))
+      end
+    end
+
+    run = @server.run_async(agent_name: "async-awaiter", input: [])
+
+    # Give the async thread time to execute - use polling instead of fixed sleep
+    10.times do
+      updated_run = @server.storage.get_run(run.run_id)
+      if updated_run.awaiting?
+        assert true
+        return
+      end
+      sleep 0.05
+    end
+
+    # Final check
+    updated_run = @server.storage.get_run(run.run_id)
+    assert updated_run.awaiting?, "Expected run to be awaiting, but status was #{updated_run.status}"
+  end
+
+  # Custom storage tests
+
+  def test_custom_storage_is_used
+    custom_storage = SimpleAcp::Storage::Memory.new
+    server = SimpleAcp::Server::Base.new(storage: custom_storage)
+
+    assert_equal custom_storage, server.storage
+  end
+
+  # Agent handler return types
+
+  def test_agent_returning_array_of_messages
+    @server.agent("multi-message") do |_context|
+      [
+        SimpleAcp::Models::Message.agent("First"),
+        SimpleAcp::Models::Message.agent("Second")
+      ]
+    end
+
+    run = @server.run_sync(agent_name: "multi-message", input: [])
+
+    assert run.completed?
+    assert_equal 2, run.output.length
+  end
+
+  def test_agent_returning_array_of_strings
+    @server.agent("string-array") do |_context|
+      ["One", "Two", "Three"]
+    end
+
+    run = @server.run_sync(agent_name: "string-array", input: [])
+
+    assert run.completed?
+    assert_equal 3, run.output.length
+    assert_equal "One", run.output.first.text_content
+  end
 end

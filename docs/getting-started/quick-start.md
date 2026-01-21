@@ -27,8 +27,8 @@ Run the server:
 
 ```bash
 ruby server.rb
-# Puma starting...
-# * Listening on http://0.0.0.0:8000
+# ACP Server (Falcon) running on http://0.0.0.0:8000
+# Registered agents: echo
 ```
 
 ### Step 2: Test with curl
