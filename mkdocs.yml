@@ -117,6 +117,7 @@ nav:
     - Installation: getting-started/installation.md
     - Quick Start: getting-started/quick-start.md
     - Configuration: getting-started/configuration.md
+  - Examples: examples.md
   - Core Concepts:
     - core-concepts/index.md
     - Messages: core-concepts/messages.md

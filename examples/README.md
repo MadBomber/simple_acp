@@ -1,8 +1,33 @@
 # SimpleAcp Examples
 
+> **CAUTION:** This project is under active development. The API and documentation may not necessarily reflect the current codebase.
+
 This directory contains example programs demonstrating SimpleAcp features.
 
-Each example is organized in its own subdirectory with both `server.rb` and `client.rb` files, plus a shell script to run them together.
+Each example is organized in its own subdirectory with both `server.rb` and `client.rb` files.
+
+## Quick Start
+
+Use the unified `run_demo.sh` script to run any demo:
+
+```bash
+# From the project root
+./examples/run_demo.sh 1      # Run demo 1 (01_basic)
+./examples/run_demo.sh 4      # Run demo 4 (04_rich_messages)
+
+# Or from the examples directory
+cd examples
+./run_demo.sh 1
+```
+
+### Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `./run_demo.sh <1-6>` | Run a specific demo by number |
+| `./run_demo.sh --list` | List all available demos |
+| `./run_demo.sh --all` | Run all demos sequentially |
+| `./run_demo.sh --help` | Show usage information |
 
 ## Examples
 
@@ -31,7 +56,7 @@ Basic server and client demonstrating core SimpleAcp functionality.
 **Usage:**
 
 ```bash
-./examples/01_basic.sh
+./examples/run_demo.sh 1
 ```
 
 ---
@@ -57,7 +82,7 @@ Demonstrates asynchronous (non-blocking) execution patterns.
 **Usage:**
 
 ```bash
-./examples/02_async_execution.sh
+./examples/run_demo.sh 2
 ```
 
 ---
@@ -83,7 +108,7 @@ Demonstrates run lifecycle management including cancellation and event history.
 **Usage:**
 
 ```bash
-./examples/03_run_management.sh
+./examples/run_demo.sh 3
 ```
 
 ---
@@ -112,7 +137,7 @@ Demonstrates different message part types and content negotiation.
 **Usage:**
 
 ```bash
-./examples/04_rich_messages.sh
+./examples/run_demo.sh 4
 ```
 
 ---
@@ -140,7 +165,7 @@ Demonstrates the await/resume pattern for interactive multi-step flows.
 **Usage:**
 
 ```bash
-./examples/05_await_resume.sh
+./examples/run_demo.sh 5
 ```
 
 ---
@@ -167,26 +192,33 @@ Demonstrates rich agent metadata and content type negotiation.
 **Usage:**
 
 ```bash
-./examples/06_agent_metadata.sh
+./examples/run_demo.sh 6
 ```
 
 ---
 
-## Running All Examples
+## Running Examples
 
-Each example can be run independently using its shell script:
+### Using the Demo Runner (Recommended)
+
+The `run_demo.sh` script handles starting the server, waiting for it to be ready, running the client, and cleanup:
 
 ```bash
-# From the project root
-./examples/01_basic.sh
-./examples/02_async_execution.sh
-./examples/03_run_management.sh
-./examples/04_rich_messages.sh
-./examples/05_await_resume.sh
-./examples/06_agent_metadata.sh
+# Run a specific demo by number
+./examples/run_demo.sh 1
+
+# List available demos
+./examples/run_demo.sh --list
+
+# Run all demos sequentially
+./examples/run_demo.sh --all
 ```
 
-Or run server and client manually in separate terminals:
+The script can be executed from either the project root or from within the examples directory.
+
+### Running Manually
+
+You can also run server and client manually in separate terminals:
 
 ```bash
 # Terminal 1: Start server

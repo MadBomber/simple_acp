@@ -1,5 +1,8 @@
 # SimpleAcp
 
+!!! warning "CAUTION"
+    This project is under active development. The API and documentation may not necessarily reflect the current codebase.
+
 <div class="grid" markdown>
 
 <div markdown>
@@ -104,3 +107,13 @@ Ready to build your first agent? Head to the [Installation](getting-started/inst
 
 [Get Started :material-arrow-right:](getting-started/installation.md){ .md-button .md-button--primary }
 [View on GitHub :material-github:](https://github.com/MadBomber/simple_acp){ .md-button }
+
+---
+
+## A Note on ACP as a Standard
+
+This gem implements the Agent Communication Protocol specification, but I have reservations about ACP becoming "the" standard for agent-to-agent communication. Like MCP before it, ACP suffers from conceptual ambiguity—the protocol designers seem unable to clearly distinguish between what constitutes an "agent" versus a "tool." This fundamental confusion permeates both protocols.
+
+Whether ACP achieves the same de facto adoption that MCP has gained remains to be seen. MCP's prevalence stems largely from momentum and network effects rather than technical superiority. ACP may follow the same path simply because it exists and others adopt it, not because it represents the best possible design for inter-agent communication.
+
+For now, this implementation provides a practical way to work with ACP-compatible systems while we wait to see how the agent communication landscape evolves.
