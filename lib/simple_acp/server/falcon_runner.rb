@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
 require "async"
-require "async/http/endpoint"
 require "falcon"
 require "falcon/server"
-require "falcon/adapters/rack"
+require "protocol/rack"
+require "io/endpoint"
+require "io/endpoint/address_endpoint"
 
 module SimpleAcp
   module Server
@@ -26,38 +27,33 @@ module SimpleAcp
       # @option options [Integer] :count number of worker processes
       # @return [void]
       def self.run(app, port: 8000, host: "0.0.0.0", **options)
-        endpoint = Async::HTTP::Endpoint.parse(
-          "http://#{host}:#{port}",
-          protocol: Async::HTTP::Protocol::HTTP11
-        )
+        endpoint = IO::Endpoint::AddressEndpoint.new(Addrinfo.tcp(host, port))
 
         puts "ACP Server (Falcon) running on http://#{host}:#{port}"
 
-        Async do |task|
-          server = Falcon::Server.new(
-            Falcon::Adapters::Rack.new(app),
-            endpoint
-          )
+        server_task = nil
 
-          task.async do
-            server.run
+        # Handle interrupt for graceful shutdown
+        trap("INT") do
+          puts "\nShutting down..."
+          Thread.main.raise(Interrupt)
+        end
+
+        trap("TERM") do
+          puts "\nShutting down..."
+          Thread.main.raise(Interrupt)
+        end
+
+        begin
+          Sync do |task|
+            rack_app = Protocol::Rack::Adapter.new(app)
+            server = Falcon::Server.new(rack_app, endpoint, protocol: Async::HTTP::Protocol::HTTP1, scheme: "http")
+
+            server_task = server.run
+            server_task.wait
           end
-
-          # Handle interrupt for graceful shutdown
-          task.async do
-            trap("INT") do
-              puts "\nShutting down..."
-              task.stop
-            end
-
-            trap("TERM") do
-              puts "\nShutting down..."
-              task.stop
-            end
-
-            # Keep the main task alive
-            sleep
-          end
+        rescue Interrupt
+          # Graceful shutdown
         end
       end
     end

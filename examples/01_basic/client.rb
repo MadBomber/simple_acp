@@ -3,10 +3,10 @@
 
 # Basic SimpleAcp Client Example
 #
-# First start the server: ruby examples/basic_server.rb
-# Then run this client: ruby examples/basic_client.rb
+# First start the server: ruby examples/01_basic/server.rb
+# Then run this client: ruby examples/01_basic/client.rb
 
-require_relative "../lib/simple_acp"
+require_relative "../../lib/simple_acp"
 
 client = SimpleAcp::Client::Base.new(base_url: "http://localhost:8000")
 
@@ -56,15 +56,19 @@ end
 client.clear_session
 puts
 
-# Test streaming
-puts "--- Testing streaming ---"
-print "Streaming response: "
-client.run_stream(agent: "echo", input: "Streaming works!") do |event|
+# Test streaming with Gettysburg Address (word by word with 0.5s delay)
+puts "--- Testing streaming (Gettysburg Address) ---"
+puts
+print "  "
+client.run_stream(agent: "gettysburg", input: "recite") do |event|
   case event
   when SimpleAcp::Models::MessagePartEvent
     print event.part.content
+    $stdout.flush
   when SimpleAcp::Models::RunCompletedEvent
-    puts " [DONE]"
+    puts
+    puts
+    puts "[Streaming complete]"
   end
 end
 puts
