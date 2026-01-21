@@ -2,11 +2,34 @@
 
 module SimpleAcp
   module Models
-    # Fundamental communication structure in ACP
+    # Fundamental communication structure in ACP.
+    #
+    # Messages represent units of communication between users and agents,
+    # containing one or more parts (text, JSON, images, etc.).
+    #
+    # @example Creating a simple text message
+    #   msg = Message.user("Hello, world!")
+    #
+    # @example Creating a message with multiple parts
+    #   msg = Message.agent(
+    #     MessagePart.text("Here's the data:"),
+    #     MessagePart.json({ count: 42 })
+    #   )
     class Message < Base
+      # @!attribute [r] role
+      #   @return [String] "user" or "agent" (or "agent/name")
       attribute :role, required: true
+
+      # @!attribute [r] parts
+      #   @return [Array<MessagePart>] content parts
       attribute :parts, default: -> { [] }
+
+      # @!attribute [r] created_at
+      #   @return [Time, nil] when the message was created
       attribute :created_at
+
+      # @!attribute [r] completed_at
+      #   @return [Time, nil] when the message was completed
       attribute :completed_at
 
       def initialize(**kwargs)
@@ -15,6 +38,10 @@ module SimpleAcp
         @created_at ||= Time.now
       end
 
+      # Create from a hash (JSON deserialization).
+      #
+      # @param hash [Hash, nil] message data
+      # @return [Message, nil] the message or nil
       def self.from_hash(hash)
         return nil if hash.nil?
 
@@ -23,7 +50,14 @@ module SimpleAcp
         instance
       end
 
-      # Create a user message
+      # Create a user message from content.
+      #
+      # @param contents [Array<String, MessagePart, Hash>] message content
+      # @return [Message] the user message
+      #
+      # @example
+      #   Message.user("Hello!")
+      #   Message.user(MessagePart.text("Hello"), MessagePart.json({key: "value"}))
       def self.user(*contents)
         parts = contents.map do |content|
           case content
@@ -41,7 +75,13 @@ module SimpleAcp
         new(role: Types::Role::USER, parts: parts)
       end
 
-      # Create an agent message
+      # Create an agent message from content.
+      #
+      # @param contents [Array<String, MessagePart, Hash>] message content
+      # @return [Message] the agent message
+      #
+      # @example
+      #   Message.agent("Hello, I'm your assistant!")
       def self.agent(*contents)
         parts = contents.map do |content|
           case content
@@ -59,14 +99,23 @@ module SimpleAcp
         new(role: Types::Role::AGENT, parts: parts)
       end
 
+      # Check if this is a user message.
+      #
+      # @return [Boolean] true if role is "user"
       def user?
         @role == Types::Role::USER
       end
 
+      # Check if this is an agent message.
+      #
+      # @return [Boolean] true if role is "agent" or starts with "agent/"
       def agent?
         @role == Types::Role::AGENT || @role.to_s.start_with?("agent/")
       end
 
+      # Get the agent name if this is a named agent message.
+      #
+      # @return [String, nil] agent name extracted from "agent/name" role
       def agent_name
         return nil unless agent?
 
@@ -75,33 +124,50 @@ module SimpleAcp
         end
       end
 
+      # Add a part to this message.
+      #
+      # @param part [MessagePart, Hash] the part to add
+      # @return [self] for chaining
       def add_part(part)
         @parts << (part.is_a?(MessagePart) ? part : MessagePart.from_hash(part))
         self
       end
 
+      # Mark the message as completed.
+      #
+      # @return [self] for chaining
       def complete!
         @completed_at = Time.now
         self
       end
 
+      # Check if the message is completed.
+      #
+      # @return [Boolean] true if completed_at is set
       def completed?
         !@completed_at.nil?
       end
 
-      # Combine messages
+      # Combine two messages by appending parts.
+      #
+      # @param other [Message] message to append
+      # @return [Message] new combined message
       def +(other)
         combined = self.class.new(role: @role, parts: @parts.dup)
         other.parts.each { |p| combined.add_part(p) }
         combined
       end
 
-      # Get text content from all parts
+      # Get combined text content from all text parts.
+      #
+      # @return [String] concatenated text content
       def text_content
         @parts.select(&:text?).map(&:content).join("\n")
       end
 
-      # Compress message by combining adjacent text parts
+      # Create a new message with adjacent text parts combined.
+      #
+      # @return [Message] compressed message
       def compress
         return self if @parts.length <= 1
 
@@ -127,6 +193,9 @@ module SimpleAcp
         self.class.new(role: @role, parts: compressed_parts, created_at: @created_at)
       end
 
+      # Validate the message.
+      #
+      # @return [Boolean] true if role is valid, has parts, and all parts are valid
       def valid?
         return false unless Types::Role.valid?(@role)
         return false if @parts.empty?
@@ -135,6 +204,9 @@ module SimpleAcp
         true
       end
 
+      # Convert to string representation.
+      #
+      # @return [String] concatenated string representation of all parts
       def to_s
         @parts.map(&:to_s).join("\n")
       end

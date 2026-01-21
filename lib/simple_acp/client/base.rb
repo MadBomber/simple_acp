@@ -5,10 +5,39 @@ require "json"
 
 module SimpleAcp
   module Client
-    # HTTP client for communicating with ACP servers
+    # HTTP client for communicating with ACP servers.
+    #
+    # Provides methods for agent discovery, run execution (sync, async, stream),
+    # run management, and session handling.
+    #
+    # @example Basic usage
+    #   client = SimpleAcp::Client::Base.new(base_url: "http://localhost:8000")
+    #   run = client.run_sync(agent: "echo", input: "Hello!")
+    #   puts run.output.first.text_content
+    #
+    # @example Streaming
+    #   client.run_stream(agent: "echo", input: "Hello") do |event|
+    #     case event
+    #     when Models::MessagePartEvent
+    #       print event.part.content
+    #     end
+    #   end
+    #
+    # @example With session
+    #   client.use_session("my-session-id")
+    #   client.run_sync(agent: "counter", input: "increment")
     class Base
+      # @return [String] the base URL of the ACP server
       attr_reader :base_url
 
+      # Create a new ACP client.
+      #
+      # @param base_url [String] the base URL of the ACP server
+      # @param options [Hash] additional options
+      # @option options [Hash] :headers custom HTTP headers
+      # @option options [Array] :auth authentication credentials for Faraday
+      # @option options [Integer] :timeout request timeout in seconds (default: 30)
+      # @option options [Integer] :open_timeout connection timeout in seconds (default: 10)
       def initialize(base_url:, **options)
         @base_url = base_url.chomp("/")
         @options = options
@@ -16,7 +45,9 @@ module SimpleAcp
         @connection = build_connection
       end
 
-      # Health check
+      # Check if the server is reachable.
+      #
+      # @return [Boolean] true if server responds to ping
       def ping
         response = @connection.get("/ping")
         handle_response(response)
@@ -25,7 +56,11 @@ module SimpleAcp
         false
       end
 
-      # List available agents
+      # List available agents on the server.
+      #
+      # @param limit [Integer] maximum number of agents to return (default: 10)
+      # @param offset [Integer] number of agents to skip (default: 0)
+      # @return [Models::AgentListResponse] list of agent manifests
       def agents(limit: 10, offset: 0)
         response = @connection.get("/agents") do |req|
           req.params["limit"] = limit
@@ -36,14 +71,24 @@ module SimpleAcp
         Models::AgentListResponse.from_hash(data)
       end
 
-      # Get a specific agent manifest
+      # Get a specific agent's manifest.
+      #
+      # @param name [String] the agent name
+      # @return [Models::AgentManifest] the agent's manifest
+      # @raise [NotFoundError] if the agent does not exist
       def agent(name)
         response = @connection.get("/agents/#{name}")
         data = handle_response(response)
         Models::AgentManifest.from_hash(data)
       end
 
-      # Run an agent synchronously
+      # Run an agent synchronously, blocking until completion.
+      #
+      # @param agent [String] the agent name
+      # @param input [Array<Models::Message>, Models::Message, String] input messages
+      # @param session_id [String, nil] optional session ID
+      # @return [Models::Run] the completed run with output
+      # @raise [NotFoundError] if the agent does not exist
       def run_sync(agent:, input:, session_id: nil)
         input_messages = normalize_input(input)
 
@@ -63,7 +108,15 @@ module SimpleAcp
         run
       end
 
-      # Run an agent asynchronously (returns immediately with run_id)
+      # Run an agent asynchronously, returning immediately.
+      #
+      # Use {#run_status} or {#wait_for_run} to check completion.
+      #
+      # @param agent [String] the agent name
+      # @param input [Array<Models::Message>, Models::Message, String] input messages
+      # @param session_id [String, nil] optional session ID
+      # @return [Models::Run] the run (status will be :created or :in_progress)
+      # @raise [NotFoundError] if the agent does not exist
       def run_async(agent:, input:, session_id: nil)
         input_messages = normalize_input(input)
 
@@ -83,7 +136,23 @@ module SimpleAcp
         run
       end
 
-      # Run an agent with streaming response
+      # Run an agent with streaming response via Server-Sent Events.
+      #
+      # @param agent [String] the agent name
+      # @param input [Array<Models::Message>, Models::Message, String] input messages
+      # @param session_id [String, nil] optional session ID
+      # @yield [Models::Event] events as they occur
+      # @return [Enumerator<Models::Event>] if no block given
+      # @raise [NotFoundError] if the agent does not exist
+      #
+      # @example With block
+      #   client.run_stream(agent: "echo", input: "Hello") do |event|
+      #     puts event.class.name
+      #   end
+      #
+      # @example As enumerator
+      #   events = client.run_stream(agent: "echo", input: "Hello")
+      #   events.each { |e| puts e }
       def run_stream(agent:, input:, session_id: nil, &block)
         input_messages = normalize_input(input)
 
@@ -94,14 +163,23 @@ module SimpleAcp
         end
       end
 
-      # Get run status
+      # Get the current status of a run.
+      #
+      # @param run_id [String] the run ID
+      # @return [Models::Run] the run with current status
+      # @raise [NotFoundError] if the run does not exist
       def run_status(run_id)
         response = @connection.get("/runs/#{run_id}")
         data = handle_response(response)
         Models::Run.from_hash(data)
       end
 
-      # Get run events
+      # Get events that occurred during a run.
+      #
+      # @param run_id [String] the run ID
+      # @param limit [Integer] maximum number of events to return (default: 100)
+      # @param offset [Integer] number of events to skip (default: 0)
+      # @return [Array<Models::Event>] list of events
       def run_events(run_id, limit: 100, offset: 0)
         response = @connection.get("/runs/#{run_id}/events") do |req|
           req.params["limit"] = limit
@@ -112,14 +190,24 @@ module SimpleAcp
         (data["events"] || []).map { |e| Models::Events.from_hash(e) }
       end
 
-      # Cancel a run
+      # Cancel a running agent execution.
+      #
+      # @param run_id [String] the run ID to cancel
+      # @return [Models::Run] the cancelled run
+      # @raise [NotFoundError] if the run does not exist
       def run_cancel(run_id)
         response = @connection.post("/runs/#{run_id}/cancel")
         data = handle_response(response)
         Models::Run.from_hash(data)
       end
 
-      # Resume a paused run synchronously
+      # Resume an awaited run synchronously.
+      #
+      # @param run_id [String] the run ID to resume
+      # @param await_resume [Models::AwaitResume] the resume payload with client response
+      # @return [Models::Run] the completed run
+      # @raise [NotFoundError] if the run does not exist
+      # @raise [ValidationError] if the run is not in awaiting state
       def run_resume_sync(run_id:, await_resume:)
         response = @connection.post("/runs/#{run_id}") do |req|
           req.headers["Content-Type"] = "application/json"
@@ -133,7 +221,14 @@ module SimpleAcp
         Models::Run.from_hash(data)
       end
 
-      # Resume a paused run with streaming
+      # Resume an awaited run with streaming output.
+      #
+      # @param run_id [String] the run ID to resume
+      # @param await_resume [Models::AwaitResume] the resume payload with client response
+      # @yield [Models::Event] events as they occur
+      # @return [Enumerator<Models::Event>] if no block given
+      # @raise [NotFoundError] if the run does not exist
+      # @raise [ValidationError] if the run is not in awaiting state
       def run_resume_stream(run_id:, await_resume:, &block)
         if block_given?
           resume_stream_with_block(run_id, await_resume, &block)
@@ -142,26 +237,41 @@ module SimpleAcp
         end
       end
 
-      # Get session details
+      # Get session details.
+      #
+      # @param session_id [String] the session ID
+      # @return [Models::SessionResponse] session information
+      # @raise [NotFoundError] if the session does not exist
       def session(session_id)
         response = @connection.get("/session/#{session_id}")
         data = handle_response(response)
         Models::SessionResponse.from_hash(data)
       end
 
-      # Use a specific session for subsequent requests
+      # Set a session ID for subsequent requests.
+      #
+      # @param session_id [String] the session ID to use
+      # @return [self] for chaining
       def use_session(session_id)
         @session_id = session_id
         self
       end
 
-      # Clear the current session
+      # Clear the current session ID.
+      #
+      # @return [self] for chaining
       def clear_session
         @session_id = nil
         self
       end
 
-      # Poll until a run completes
+      # Poll until a run completes or times out.
+      #
+      # @param run_id [String] the run ID to wait for
+      # @param timeout [Integer] maximum seconds to wait (default: 60)
+      # @param interval [Integer] seconds between polls (default: 1)
+      # @return [Models::Run] the completed run
+      # @raise [Error] if timeout is exceeded
       def wait_for_run(run_id, timeout: 60, interval: 1)
         deadline = Time.now + timeout
 
@@ -175,7 +285,9 @@ module SimpleAcp
         end
       end
 
-      # Close the connection
+      # Close the HTTP connection.
+      #
+      # @return [void]
       def close
         @connection.close if @connection.respond_to?(:close)
       end

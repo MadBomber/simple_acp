@@ -2,10 +2,35 @@
 
 module SimpleAcp
   module Server
-    # Main ACP Server class
+    # Main ACP Server class for hosting agents and handling requests.
+    #
+    # The server manages agent registration, run execution (sync, async, stream),
+    # session state, and exposes an HTTP API via Roda/Puma.
+    #
+    # @example Creating and running a server
+    #   server = SimpleAcp::Server::Base.new
+    #   server.agent("echo", description: "Echoes input") do |context|
+    #     SimpleAcp::Models::Message.agent(context.input.first.text_content)
+    #   end
+    #   server.run(port: 8000)
+    #
+    # @example Using custom storage
+    #   storage = SimpleAcp::Storage::Redis.new(url: "redis://localhost:6379")
+    #   server = SimpleAcp::Server::Base.new(storage: storage)
     class Base
-      attr_reader :agents, :storage, :options
+      # @return [Hash<String, Agent>] registered agents indexed by name
+      attr_reader :agents
 
+      # @return [Storage::Base] storage backend for runs, sessions, and events
+      attr_reader :storage
+
+      # @return [Hash] additional configuration options
+      attr_reader :options
+
+      # Initialize a new ACP server.
+      #
+      # @param storage [Storage::Base, nil] storage backend (defaults to Memory)
+      # @param options [Hash] additional configuration options
       def initialize(storage: nil, **options)
         @agents = {}
         @storage = storage || SimpleAcp::Storage::Memory.new
@@ -13,7 +38,29 @@ module SimpleAcp
         @running_contexts = Concurrent::Map.new
       end
 
-      # Register an agent using decorator-style syntax
+      # Register an agent using block syntax or decorator-style.
+      #
+      # @param name [String, nil] agent name (must follow RFC 1123 DNS label format)
+      # @param description [String, nil] human-readable description
+      # @param options [Hash] additional options
+      # @option options [Array<String>] :input_content_types accepted MIME types
+      # @option options [Array<String>] :output_content_types produced MIME types
+      # @option options [Hash] :metadata agent metadata
+      # @yield [Context] block that handles agent requests
+      # @return [Agent, Proc] the registered agent or a decorator lambda
+      #
+      # @example Block syntax
+      #   server.agent("greeter", description: "Greets users") do |context|
+      #     name = context.input.first&.text_content || "World"
+      #     SimpleAcp::Models::Message.agent("Hello, #{name}!")
+      #   end
+      #
+      # @example Streaming agent
+      #   server.agent("counter") do |context|
+      #     Enumerator.new do |yielder|
+      #       3.times { |i| yielder << SimpleAcp::Models::Message.agent("Count: #{i}") }
+      #     end
+      #   end
       def agent(name = nil, description: nil, **options, &block)
         if block_given?
           # Direct registration with block
@@ -43,7 +90,12 @@ module SimpleAcp
         end
       end
 
-      # Register an agent instance
+      # Register an agent instance directly.
+      #
+      # @param agent [Agent] the agent to register
+      # @return [Agent] the registered agent
+      # @raise [ValidationError] if the agent is invalid
+      # @raise [ConfigurationError] if an agent with the same name exists
       def register(agent)
         raise SimpleAcp::ValidationError, "Invalid agent" unless agent.valid?
         raise SimpleAcp::ConfigurationError, "Agent '#{agent.name}' already registered" if @agents.key?(agent.name)
@@ -52,12 +104,22 @@ module SimpleAcp
         agent
       end
 
-      # Unregister an agent
+      # Unregister an agent by name.
+      #
+      # @param name [String] the agent name to remove
+      # @return [Agent, nil] the removed agent or nil if not found
       def unregister(name)
         @agents.delete(name)
       end
 
-      # Run an agent synchronously
+      # Run an agent synchronously, blocking until completion.
+      #
+      # @param agent_name [String] name of the agent to run
+      # @param input [Array<Models::Message>, Models::Message, String] input messages
+      # @param session_id [String, nil] optional session ID for stateful interactions
+      # @param session [Models::Session, Hash, nil] optional session data
+      # @return [Models::Run] the completed run with output
+      # @raise [NotFoundError] if the agent is not found
       def run_sync(agent_name:, input:, session_id: nil, session: nil)
         run, context = prepare_run(agent_name, input, session_id, session)
 
@@ -86,7 +148,17 @@ module SimpleAcp
         run
       end
 
-      # Run an agent asynchronously (returns immediately)
+      # Run an agent asynchronously, returning immediately with a run ID.
+      #
+      # The agent executes in a background thread. Use {#cancel_run} to stop
+      # or poll the storage to check status.
+      #
+      # @param agent_name [String] name of the agent to run
+      # @param input [Array<Models::Message>, Models::Message, String] input messages
+      # @param session_id [String, nil] optional session ID
+      # @param session [Models::Session, Hash, nil] optional session data
+      # @return [Models::Run] the run (status will be :created or :in_progress)
+      # @raise [NotFoundError] if the agent is not found
       def run_async(agent_name:, input:, session_id: nil, session: nil)
         run, context = prepare_run(agent_name, input, session_id, session)
 
@@ -123,7 +195,28 @@ module SimpleAcp
         run
       end
 
-      # Run an agent with streaming output
+      # Run an agent with streaming output via Server-Sent Events.
+      #
+      # Yields events as the agent executes, enabling real-time response streaming.
+      #
+      # @param agent_name [String] name of the agent to run
+      # @param input [Array<Models::Message>, Models::Message, String] input messages
+      # @param session_id [String, nil] optional session ID
+      # @param session [Models::Session, Hash, nil] optional session data
+      # @yield [Models::Event] events as they occur during execution
+      # @yieldparam event [Models::RunCreatedEvent, Models::MessagePartEvent, Models::RunCompletedEvent, etc.]
+      # @return [void]
+      # @raise [NotFoundError] if the agent is not found
+      #
+      # @example
+      #   server.run_stream(agent_name: "echo", input: "Hello") do |event|
+      #     case event
+      #     when Models::MessagePartEvent
+      #       print event.part.content
+      #     when Models::RunCompletedEvent
+      #       puts "\nDone!"
+      #     end
+      #   end
       def run_stream(agent_name:, input:, session_id: nil, session: nil)
         run, context = prepare_run(agent_name, input, session_id, session)
 
@@ -176,7 +269,16 @@ module SimpleAcp
         end
       end
 
-      # Resume an awaited run synchronously
+      # Resume an awaited run synchronously.
+      #
+      # When an agent yields a {RunYieldAwait}, the run enters an "awaiting" state.
+      # Use this method to provide the requested input and continue execution.
+      #
+      # @param run_id [String] the run ID to resume
+      # @param await_resume [Models::AwaitResume] the resume payload with client response
+      # @return [Models::Run] the completed run
+      # @raise [NotFoundError] if the run is not found
+      # @raise [ValidationError] if the run is not in awaiting state
       def resume_sync(run_id:, await_resume:)
         run, context = prepare_resume(run_id, await_resume)
 
@@ -205,7 +307,14 @@ module SimpleAcp
         run
       end
 
-      # Resume an awaited run with streaming
+      # Resume an awaited run with streaming output.
+      #
+      # @param run_id [String] the run ID to resume
+      # @param await_resume [Models::AwaitResume] the resume payload with client response
+      # @yield [Models::Event] events as they occur during execution
+      # @return [void]
+      # @raise [NotFoundError] if the run is not found
+      # @raise [ValidationError] if the run is not in awaiting state
       def resume_stream(run_id:, await_resume:)
         run, context = prepare_resume(run_id, await_resume)
 
@@ -248,7 +357,11 @@ module SimpleAcp
         end
       end
 
-      # Cancel a running agent
+      # Cancel a running agent execution.
+      #
+      # @param run_id [String] the run ID to cancel
+      # @return [Models::Run] the cancelled run
+      # @raise [NotFoundError] if the run is not found
       def cancel_run(run_id)
         run = @storage.get_run(run_id)
         raise SimpleAcp::NotFoundError, "Run '#{run_id}' not found" unless run
@@ -261,13 +374,20 @@ module SimpleAcp
         run
       end
 
-      # Create the Rack application
+      # Create a Rack-compatible application.
+      #
+      # @return [Roda] the Rack application
       def to_app
         App.configure(self)
         App.freeze.app
       end
 
-      # Start the server
+      # Start the HTTP server using Puma.
+      #
+      # @param port [Integer] port to listen on (default: 8000)
+      # @param host [String] host to bind to (default: "0.0.0.0")
+      # @param puma_options [Hash] additional Puma configuration options
+      # @return [void]
       def run(port: 8000, host: "0.0.0.0", **puma_options)
         require "puma"
 

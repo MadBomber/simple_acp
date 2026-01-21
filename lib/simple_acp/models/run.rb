@@ -2,16 +2,51 @@
 
 module SimpleAcp
   module Models
-    # Single agent execution
+    # Represents a single agent execution.
+    #
+    # Tracks the lifecycle of an agent run from creation through completion,
+    # including status, output messages, errors, and timing.
+    #
+    # == Status Lifecycle
+    #
+    # - created -> in_progress -> completed | failed | cancelled | awaiting
+    # - awaiting -> in_progress (on resume)
+    # - cancelling -> cancelled
     class Run < Base
+      # @!attribute [r] run_id
+      #   @return [String] unique UUID for this run
       attribute :run_id, required: true
+
+      # @!attribute [r] agent_name
+      #   @return [String] name of the agent being executed
       attribute :agent_name, required: true
+
+      # @!attribute [r] session_id
+      #   @return [String, nil] optional session ID
       attribute :session_id
+
+      # @!attribute [r] status
+      #   @return [String] current status (created, in-progress, completed, failed, cancelled, awaiting)
       attribute :status, default: Types::RunStatus::CREATED
+
+      # @!attribute [r] await_request
+      #   @return [AwaitRequest, nil] request for client input (when awaiting)
       attribute :await_request
+
+      # @!attribute [r] output
+      #   @return [Array<Message>] output messages from the agent
       attribute :output, default: -> { [] }
+
+      # @!attribute [r] error
+      #   @return [Error, nil] error details if failed
       attribute :error
+
+      # @!attribute [r] created_at
+      #   @return [Time, nil] when the run was created
       attribute :created_at
+
+      # @!attribute [r] finished_at
+      #   @return [Time, nil] when the run finished (completed, failed, or cancelled)
       attribute :finished_at
 
       def initialize(**kwargs)
@@ -21,6 +56,10 @@ module SimpleAcp
         @created_at ||= Time.now
       end
 
+      # Create from a hash (JSON deserialization).
+      #
+      # @param hash [Hash, nil] run data
+      # @return [Run, nil] the run or nil
       def self.from_hash(hash)
         return nil if hash.nil?
 
@@ -29,45 +68,77 @@ module SimpleAcp
         instance
       end
 
+      # Check if the run is in a terminal state.
+      #
+      # @return [Boolean] true if completed, failed, or cancelled
       def terminal?
         Types::RunStatus.terminal?(@status)
       end
 
+      # Check if the run is currently executing.
+      #
+      # @return [Boolean] true if in_progress
       def in_progress?
         @status == Types::RunStatus::IN_PROGRESS
       end
 
+      # Check if the run is waiting for client input.
+      #
+      # @return [Boolean] true if awaiting
       def awaiting?
         @status == Types::RunStatus::AWAITING
       end
 
+      # Check if the run completed successfully.
+      #
+      # @return [Boolean] true if completed
       def completed?
         @status == Types::RunStatus::COMPLETED
       end
 
+      # Check if the run failed.
+      #
+      # @return [Boolean] true if failed
       def failed?
         @status == Types::RunStatus::FAILED
       end
 
+      # Check if the run was cancelled.
+      #
+      # @return [Boolean] true if cancelled
       def cancelled?
         @status == Types::RunStatus::CANCELLED
       end
 
+      # Check if the run is being cancelled.
+      #
+      # @return [Boolean] true if cancelling
       def cancelling?
         @status == Types::RunStatus::CANCELLING
       end
 
+      # Transition to in_progress status.
+      #
+      # @return [self] for chaining
       def start!
         @status = Types::RunStatus::IN_PROGRESS
         self
       end
 
+      # Transition to awaiting status.
+      #
+      # @param request [AwaitRequest] the request for client input
+      # @return [self] for chaining
       def await!(request)
         @status = Types::RunStatus::AWAITING
         @await_request = request
         self
       end
 
+      # Transition to completed status.
+      #
+      # @param output [Array<Message>, nil] optional output messages
+      # @return [self] for chaining
       def complete!(output = nil)
         @status = Types::RunStatus::COMPLETED
         @output = output if output
@@ -75,6 +146,10 @@ module SimpleAcp
         self
       end
 
+      # Transition to failed status.
+      #
+      # @param error [Error, String] the error or error message
+      # @return [self] for chaining
       def fail!(error)
         @status = Types::RunStatus::FAILED
         @error = error.is_a?(Error) ? error : Error.server_error(error.to_s)
@@ -82,28 +157,45 @@ module SimpleAcp
         self
       end
 
+      # Transition to cancelling status.
+      #
+      # @return [self] for chaining
       def cancel!
         @status = Types::RunStatus::CANCELLING
         self
       end
 
+      # Transition to cancelled status.
+      #
+      # @return [self] for chaining
       def cancelled!
         @status = Types::RunStatus::CANCELLED
         @finished_at = Time.now
         self
       end
 
+      # Add a message to the output.
+      #
+      # @param message [Message, Hash] the message to add
+      # @return [self] for chaining
       def add_output(message)
         @output << (message.is_a?(Message) ? message : Message.from_hash(message))
         self
       end
 
+      # Raise an exception if the run failed.
+      #
+      # @return [self] if not failed
+      # @raise [RunError] if failed
       def raise_for_status!
         return self unless failed?
 
         raise SimpleAcp::RunError, @error&.message || "Run failed"
       end
 
+      # Validate the run.
+      #
+      # @return [Boolean] true if run_id, agent_name, and status are valid
       def valid?
         return false unless Types.valid_uuid?(@run_id)
         return false unless Types.valid_agent_name?(@agent_name)

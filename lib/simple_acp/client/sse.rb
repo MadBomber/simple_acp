@@ -2,10 +2,15 @@
 
 module SimpleAcp
   module Client
-    # Server-Sent Events (SSE) parser
+    # Server-Sent Events (SSE) parser for streaming responses.
+    #
+    # Parses chunked SSE data into structured events following the
+    # SSE specification (event, data, id, retry fields).
     class SSEParser
+      # @return [Array<Hash>] parsed events with :event and :data keys
       attr_reader :events
 
+      # Create a new SSE parser.
       def initialize
         @buffer = ""
         @events = []
@@ -13,12 +18,20 @@ module SimpleAcp
         @current_data = []
       end
 
+      # Feed a chunk of data to the parser.
+      #
+      # @param chunk [String] raw SSE data chunk
+      # @return [void]
       def feed(chunk)
         @buffer += chunk
         parse_buffer
         flush_events
       end
 
+      # Iterate over parsed events, clearing them after yield.
+      #
+      # @yield [Hash] event with :event (type) and :data (payload) keys
+      # @return [void]
       def each_event
         flush_events
         while (event = @events.shift)
@@ -84,15 +97,25 @@ module SimpleAcp
       end
     end
 
-    # SSE stream reader that yields parsed events
+    # Enumerable wrapper for streaming SSE responses.
+    #
+    # Reads from an HTTP response body, parses SSE events,
+    # and converts them to ACP event objects.
     class SSEStream
       include Enumerable
 
+      # Create a new SSE stream reader.
+      #
+      # @param response [Net::HTTPResponse] the HTTP response with SSE body
       def initialize(response)
         @response = response
         @parser = SSEParser.new
       end
 
+      # Iterate over ACP events from the stream.
+      #
+      # @yield [Models::Event] parsed ACP events
+      # @return [Enumerator] if no block given
       def each
         return enum_for(:each) unless block_given?
 

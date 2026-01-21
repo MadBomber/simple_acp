@@ -1,6 +1,41 @@
-# SimpleAcp - Agent Communication Protocol for Ruby
+# SimpleAcp
 
-A Ruby implementation of the [Agent Communication Protocol (ACP)](https://github.com/i-am-bee/acp) - an open protocol for communication between AI agents, applications, and humans.
+<table>
+  <tr>
+    <td width="40%">
+      <img src="docs/assets/images/simple_acp.jpg" alt="SimpleAcp - Robots communicating in binary" width="100%">
+    </td>
+    <td width="60%" valign="top">
+      <strong>A Ruby implementation of the Agent Communication Protocol (ACP)</strong>
+      <br><br>
+      SimpleAcp provides an open protocol for communication between AI agents, applications, and humans. Build agent servers that host multiple agents, connect with HTTP clients, and stream responses in real-time via Server-Sent Events.
+      <br><br>
+      <table>
+        <tr>
+          <td>:robot: Full ACP Protocol</td>
+          <td>:arrows_counterclockwise: Sync/Async/Stream</td>
+        </tr>
+        <tr>
+          <td>:speech_balloon: Session Management</td>
+          <td>:framed_picture: Multimodal Messages</td>
+        </tr>
+        <tr>
+          <td>:floppy_disk: Pluggable Storage</td>
+          <td>:zap: SSE Streaming</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<p align="center">
+  <a href="https://madbomber.github.io/simple_acp/getting-started/installation/">Install</a> •
+  <a href="https://madbomber.github.io/simple_acp/getting-started/quick-start/">Quick Start</a> •
+  <a href="https://madbomber.github.io/simple_acp/">Documentation</a> •
+  <a href="https://github.com/i-am-bee/acp">ACP Specification</a>
+</p>
+
+---
 
 ## Features
 
@@ -10,6 +45,19 @@ A Ruby implementation of the [Agent Communication Protocol (ACP)](https://github
 - **Multimodal Messages**: Support for text, JSON, images, and URL references
 - **Pluggable Storage**: In-memory, Redis, and PostgreSQL backends
 - **SSE Streaming**: Server-Sent Events for real-time response streaming
+
+## Documentation
+
+For comprehensive guides, tutorials, and API reference, visit the **[SimpleAcp Documentation](https://madbomber.github.io/simple_acp/)**.
+
+The documentation covers:
+
+- [Installation & Quick Start](https://madbomber.github.io/simple_acp/getting-started/installation/)
+- [Core Concepts](https://madbomber.github.io/simple_acp/core-concepts/) (Messages, Agents, Runs, Sessions, Events)
+- [Server Guide](https://madbomber.github.io/simple_acp/server/) (Creating Agents, Streaming, Multi-Turn Conversations)
+- [Client Guide](https://madbomber.github.io/simple_acp/client/) (Sync/Async, Streaming, Session Management)
+- [Storage Backends](https://madbomber.github.io/simple_acp/storage/) (Memory, Redis, PostgreSQL, Custom)
+- [API Reference](https://madbomber.github.io/simple_acp/api/)
 
 ## Installation
 

@@ -1,0 +1,151 @@
+site_name: SimpleAcp Documentation
+site_description: "Ruby implementation of the Agent Communication Protocol (ACP) for AI agent communication"
+site_author: "Dewayne VanHoozer"
+site_url: "https://madbomber.github.io/simple_acp/"
+
+repo_name: "MadBomber/simple_acp"
+repo_url: "https://github.com/MadBomber/simple_acp"
+edit_uri: "edit/main/docs/"
+
+theme:
+  name: material
+  language: en
+
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+  font:
+    text: Roboto
+    code: Roboto Mono
+
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.path
+    - navigation.indexes
+    - navigation.top
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - search.share
+    - header.autohide
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.tooltips
+    - content.action.edit
+    - content.action.view
+
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"\`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+      title: On this page
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.magiclink:
+      repo_url_shorthand: true
+      user: MadBomber
+      repo: simple_acp
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+extra:
+  version: 0.1.0
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/MadBomber/simple_acp
+      name: GitHub Repository
+    - icon: fontawesome/solid/gem
+      link: https://rubygems.org/gems/simple_acp
+      name: RubyGems
+  generator: false
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - getting-started/index.md
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quick-start.md
+    - Configuration: getting-started/configuration.md
+  - Core Concepts:
+    - core-concepts/index.md
+    - Messages: core-concepts/messages.md
+    - Agents: core-concepts/agents.md
+    - Runs: core-concepts/runs.md
+    - Sessions: core-concepts/sessions.md
+    - Events: core-concepts/events.md
+  - Server Guide:
+    - server/index.md
+    - Creating Agents: server/creating-agents.md
+    - Streaming Responses: server/streaming.md
+    - Multi-Turn Conversations: server/multi-turn.md
+    - HTTP Endpoints: server/http-endpoints.md
+  - Client Guide:
+    - client/index.md
+    - Sync & Async: client/sync-async.md
+    - Streaming: client/streaming.md
+    - Session Management: client/sessions.md
+  - Storage Backends:
+    - storage/index.md
+    - Memory: storage/memory.md
+    - Redis: storage/redis.md
+    - PostgreSQL: storage/postgresql.md
+    - Custom Backends: storage/custom.md
+  - API Reference:
+    - api/index.md
+    - Server::Base: api/server-base.md
+    - Client::Base: api/client-base.md
+    - Models: api/models.md
+    - Storage: api/storage.md
+
+copyright: Copyright &copy; 2025 Dewayne VanHoozer

@@ -2,10 +2,20 @@
 
 module SimpleAcp
   module Models
-    # Base class for all SSE events
+    # Base class for all Server-Sent Events (SSE).
+    #
+    # Events are streamed during run execution to provide
+    # real-time updates on progress and output.
+    #
+    # @abstract Subclass and set type in initializer
     class Event < Base
+      # @!attribute [r] type
+      #   @return [String] event type (see Types::EventType)
       attribute :type, required: true
 
+      # Format for Server-Sent Events protocol.
+      #
+      # @return [String] SSE-formatted event
       def sse_format
         "event: #{@type}\ndata: #{to_json}\n\n"
       end
@@ -203,8 +213,9 @@ module SimpleAcp
       end
     end
 
-    # Event factory for parsing events
+    # Factory module for parsing events from hashes.
     module Events
+      # Mapping of event types to classes
       EVENT_CLASSES = {
         Types::EventType::MESSAGE_CREATED => MessageCreatedEvent,
         Types::EventType::MESSAGE_PART => MessagePartEvent,
@@ -219,6 +230,10 @@ module SimpleAcp
         Types::EventType::ERROR => ErrorEvent
       }.freeze
 
+      # Parse an event from a hash.
+      #
+      # @param hash [Hash, nil] event data with "type" key
+      # @return [Event, nil] the appropriate event subclass or nil
       def self.from_hash(hash)
         return nil if hash.nil?
 
@@ -227,6 +242,10 @@ module SimpleAcp
         klass.from_hash(hash)
       end
 
+      # Parse JSON SSE data.
+      #
+      # @param data [String] JSON string
+      # @return [Hash, nil] parsed hash or nil if invalid
       def self.parse_sse(data)
         JSON.parse(data)
       rescue JSON::ParserError

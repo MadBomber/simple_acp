@@ -5,7 +5,22 @@ require "json"
 
 module SimpleAcp
   module Server
-    # Roda application implementing ACP HTTP endpoints
+    # Roda application implementing ACP HTTP endpoints.
+    #
+    # Provides REST endpoints for agent discovery, run management,
+    # and session handling. Supports sync, async, and streaming modes.
+    #
+    # == Endpoints
+    #
+    # - GET /ping - Health check
+    # - GET /agents - List agents
+    # - GET /agents/:name - Get agent manifest
+    # - POST /runs - Create a run
+    # - GET /runs/:id - Get run status
+    # - POST /runs/:id - Resume awaited run
+    # - POST /runs/:id/cancel - Cancel run
+    # - GET /runs/:id/events - Get run events
+    # - GET /session/:id - Get session info
     class App < Roda
       plugin :json
       plugin :json_parser
@@ -13,11 +28,17 @@ module SimpleAcp
       plugin :halt
       plugin :streaming
 
-      # Configure the server instance
+      # Configure the Roda app with a server instance.
+      #
+      # @param server [Server::Base] the server to handle requests
+      # @return [void]
       def self.configure(server)
         @server = server
       end
 
+      # Get the configured server instance.
+      #
+      # @return [Server::Base] the server
       def self.server
         @server
       end

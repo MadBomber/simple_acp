@@ -2,11 +2,36 @@
 
 module SimpleAcp
   module Storage
-    # Redis-backed storage for distributed deployments
+    # Redis-backed storage for distributed deployments.
+    #
+    # Stores data in Redis with configurable TTL for automatic expiration.
+    # Suitable for multi-process or multi-server deployments.
+    #
+    # @example
+    #   storage = SimpleAcp::Storage::Redis.new(
+    #     url: "redis://localhost:6379",
+    #     ttl: 3600  # 1 hour
+    #   )
+    #   server = SimpleAcp::Server::Base.new(storage: storage)
     class Redis < Base
-      DEFAULT_TTL = 86_400 # 24 hours
+      # Default TTL of 24 hours
+      DEFAULT_TTL = 86_400
+
+      # Default key prefix
       KEY_PREFIX = "acp:"
 
+      # Initialize Redis storage.
+      #
+      # @param options [Hash] configuration options
+      # @option options [Redis] :redis existing Redis connection
+      # @option options [String] :url Redis URL (default: $REDIS_URL or localhost)
+      # @option options [Integer] :ttl TTL in seconds (default: 86400)
+      # @option options [String] :prefix key prefix (default: "acp:")
+      # @option options [String] :host Redis host
+      # @option options [Integer] :port Redis port
+      # @option options [Integer] :db Redis database number
+      # @option options [String] :password Redis password
+      # @option options [Boolean] :ssl use SSL
       def initialize(options = {})
         super
         @redis = options[:redis] || connect_redis(options)
@@ -14,8 +39,7 @@ module SimpleAcp
         @prefix = options[:prefix] || KEY_PREFIX
       end
 
-      # Run storage
-
+      # @see Base#get_run
       def get_run(run_id)
         data = @redis.get(run_key(run_id))
         return nil unless data
@@ -23,6 +47,7 @@ module SimpleAcp
         Models::Run.from_hash(JSON.parse(data))
       end
 
+      # @see Base#save_run
       def save_run(run)
         @redis.setex(run_key(run.run_id), @ttl, run.to_json)
 
@@ -37,6 +62,7 @@ module SimpleAcp
         run
       end
 
+      # @see Base#delete_run
       def delete_run(run_id)
         run = get_run(run_id)
         return unless run
@@ -47,6 +73,7 @@ module SimpleAcp
         @redis.srem(session_runs_key(run.session_id), run_id) if run.session_id
       end
 
+      # @see Base#list_runs
       def list_runs(agent_name: nil, session_id: nil, limit: 10, offset: 0)
         run_ids = if agent_name
                     @redis.smembers(agent_runs_key(agent_name))
@@ -65,8 +92,7 @@ module SimpleAcp
         }
       end
 
-      # Session storage
-
+      # @see Base#get_session
       def get_session(session_id)
         data = @redis.get(session_key(session_id))
         return nil unless data
@@ -74,40 +100,45 @@ module SimpleAcp
         Models::Session.from_hash(JSON.parse(data))
       end
 
+      # @see Base#save_session
       def save_session(session)
         @redis.setex(session_key(session.id), @ttl, session.to_json)
         session
       end
 
+      # @see Base#delete_session
       def delete_session(session_id)
         @redis.del(session_key(session_id))
       end
 
-      # Event storage
-
+      # @see Base#add_event
       def add_event(run_id, event)
         @redis.rpush(events_key(run_id), event.to_json)
         @redis.expire(events_key(run_id), @ttl)
         event
       end
 
+      # @see Base#get_events
       def get_events(run_id, limit: 100, offset: 0)
         events_data = @redis.lrange(events_key(run_id), offset, offset + limit - 1)
         events_data.map { |data| Models::Events.from_hash(JSON.parse(data)) }
       end
 
-      # Lifecycle
-
+      # @see Base#close
       def close
         @redis.close if @redis.respond_to?(:close)
       end
 
+      # @see Base#ping
       def ping
         @redis.ping == "PONG"
       rescue StandardError
         false
       end
 
+      # Clear all stored data.
+      #
+      # @return [void]
       def clear!
         keys = @redis.keys("#{@prefix}*")
         @redis.del(*keys) unless keys.empty?

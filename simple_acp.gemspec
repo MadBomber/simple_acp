@@ -54,11 +54,12 @@ Gem::Specification.new do |spec|
 
   # Development & Testing
   spec.add_development_dependency "bundler"
+  spec.add_development_dependency "debug_me"
+  spec.add_development_dependency "aigcm"
   spec.add_development_dependency "rake", "~> 13.0"
   spec.add_development_dependency "minitest", "~> 5.0"
   spec.add_development_dependency "minitest-reporters", "~> 1.6"
   spec.add_development_dependency "rack-test", "~> 2.0"
   spec.add_development_dependency "webmock", "~> 3.0"
   spec.add_development_dependency "rubocop", "~> 1.0"
-  spec.add_development_dependency "debug_me", "~> 1.0"
 end

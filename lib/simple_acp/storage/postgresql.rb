@@ -2,16 +2,35 @@
 
 module SimpleAcp
   module Storage
-    # PostgreSQL-backed storage for persistent deployments
+    # PostgreSQL-backed storage for persistent deployments.
+    #
+    # Stores data in PostgreSQL using the Sequel gem.
+    # Automatically creates required tables on first use.
+    #
+    # @example
+    #   storage = SimpleAcp::Storage::PostgreSQL.new(
+    #     url: "postgres://localhost/simple_acp"
+    #   )
+    #   server = SimpleAcp::Server::Base.new(storage: storage)
     class PostgreSQL < Base
+      # Initialize PostgreSQL storage.
+      #
+      # @param options [Hash] configuration options
+      # @option options [Sequel::Database] :db existing Sequel connection
+      # @option options [String] :url database URL (default: $DATABASE_URL or localhost)
+      # @option options [Boolean] :skip_setup skip automatic table creation
+      # @option options [String] :host database host
+      # @option options [Integer] :port database port
+      # @option options [String] :database database name
+      # @option options [String] :user database user
+      # @option options [String] :password database password
       def initialize(options = {})
         super
         @db = options[:db] || connect_db(options)
         setup_tables unless options[:skip_setup]
       end
 
-      # Run storage
-
+      # @see Base#get_run
       def get_run(run_id)
         row = @db[:acp_runs].where(run_id: run_id).first
         return nil unless row
@@ -19,6 +38,7 @@ module SimpleAcp
         deserialize_run(row)
       end
 
+      # @see Base#save_run
       def save_run(run)
         data = {
           run_id: run.run_id,
@@ -42,11 +62,13 @@ module SimpleAcp
         run
       end
 
+      # @see Base#delete_run
       def delete_run(run_id)
         @db[:acp_events].where(run_id: run_id).delete
         @db[:acp_runs].where(run_id: run_id).delete
       end
 
+      # @see Base#list_runs
       def list_runs(agent_name: nil, session_id: nil, limit: 10, offset: 0)
         dataset = @db[:acp_runs]
         dataset = dataset.where(agent_name: agent_name) if agent_name
@@ -61,8 +83,7 @@ module SimpleAcp
         }
       end
 
-      # Session storage
-
+      # @see Base#get_session
       def get_session(session_id)
         row = @db[:acp_sessions].where(id: session_id).first
         return nil unless row
@@ -70,6 +91,7 @@ module SimpleAcp
         deserialize_session(row)
       end
 
+      # @see Base#save_session
       def save_session(session)
         data = {
           id: session.id,
@@ -88,12 +110,12 @@ module SimpleAcp
         session
       end
 
+      # @see Base#delete_session
       def delete_session(session_id)
         @db[:acp_sessions].where(id: session_id).delete
       end
 
-      # Event storage
-
+      # @see Base#add_event
       def add_event(run_id, event)
         @db[:acp_events].insert(
           run_id: run_id,
@@ -104,6 +126,7 @@ module SimpleAcp
         event
       end
 
+      # @see Base#get_events
       def get_events(run_id, limit: 100, offset: 0)
         rows = @db[:acp_events]
           .where(run_id: run_id)
@@ -115,18 +138,21 @@ module SimpleAcp
         rows.map { |row| Models::Events.from_hash(JSON.parse(row[:data])) }
       end
 
-      # Lifecycle
-
+      # @see Base#close
       def close
         @db.disconnect if @db.respond_to?(:disconnect)
       end
 
+      # @see Base#ping
       def ping
         @db.test_connection
       rescue StandardError
         false
       end
 
+      # Clear all stored data.
+      #
+      # @return [void]
       def clear!
         @db[:acp_events].delete
         @db[:acp_runs].delete
