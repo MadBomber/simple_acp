@@ -2149,14 +2149,13 @@
 </div>
 </div>
 <h3 id="http-server-options">HTTP Server Options<a class="headerlink" href="#http-server-options" title="Permanent link">&para;</a></h3>
-<p>When running the HTTP server, you can configure Puma:</p>
+<p>When running the HTTP server with Falcon:</p>
 <div class="language-ruby highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">server</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="ss">port</span><span class="p">:</span><span class="w"> </span><span class="mi">8000</span><span class="p">,</span><span class="w">              </span><span class="c1"># Listen port</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="ss">host</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;0.0.0.0&#39;</span><span class="p">,</span><span class="w">         </span><span class="c1"># Bind address</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="ss">workers</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w">              </span><span class="c1"># Puma workers</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="ss">threads</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;1:5&#39;</span><span class="w">           </span><span class="c1"># Min:max threads per worker</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="p">)</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="ss">host</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;0.0.0.0&#39;</span><span class="w">          </span><span class="c1"># Bind address</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="p">)</span>
 </span></code></pre></div>
+<p>Falcon uses fiber-based concurrency, efficiently handling thousands of concurrent SSE connections without manual thread configuration.</p>
 <h2 id="client-configuration">Client Configuration<a class="headerlink" href="#client-configuration" title="Permanent link">&para;</a></h2>
 <h3 id="basic-options_1">Basic Options<a class="headerlink" href="#basic-options_1" title="Permanent link">&para;</a></h3>
 <div class="language-ruby highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="no">SimpleAcp</span><span class="o">::</span><span class="no">Client</span><span class="o">::</span><span class="no">Base</span><span class="o">.</span><span class="n">new</span><span class="p">(</span>

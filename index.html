@@ -1840,6 +1840,7 @@
 <li><strong>Multimodal Messages</strong>: Support for text, JSON, images, and URL references</li>
 <li><strong>Pluggable Storage</strong>: In-memory, Redis, and PostgreSQL backends included</li>
 <li><strong>SSE Streaming</strong>: Server-Sent Events for real-time response streaming</li>
+<li><strong>Falcon Server</strong>: Fiber-based concurrency for efficient handling of thousands of concurrent connections</li>
 </ul>
 <h2 id="quick-example">Quick Example<a class="headerlink" href="#quick-example" title="Permanent link">&para;</a></h2>
 <div class="language-ruby highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">require</span><span class="w"> </span><span class="s1">&#39;simple_acp&#39;</span>
@@ -1884,7 +1885,7 @@
     S --&gt; ST</code></pre>
 <p>SimpleAcp follows a client-server architecture:</p>
 <ul>
-<li><strong>Server</strong>: Hosts agents and handles HTTP requests via Roda/Puma</li>
+<li><strong>Server</strong>: Hosts agents and handles HTTP requests via Roda/Falcon</li>
 <li><strong>Agents</strong>: Process input and produce output messages</li>
 <li><strong>Client</strong>: Communicates with servers over HTTP with optional SSE streaming</li>
 <li><strong>Storage</strong>: Persists runs, sessions, and events</li>
