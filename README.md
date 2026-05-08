@@ -1,5 +1,7 @@
 # SimpleAcp
 
+> **DEPRECATED:** The ACP (Agent Communication Protocol) specification is dead. It was absorbed into the [A2A (Agent-to-Agent) specification](https://github.com/google-deepmind/agent2agent), which is now maintained by the Linux Foundation. As a result, this gem is no longer useful. The successor Ruby gem for agent-to-agent communication is **[simple_a2a](https://github.com/madbomber/simple_a2a)**.
+
 > **CAUTION:** This project is under active development. The API and documentation may not necessarily reflect the current codebase.
 
 <table>
